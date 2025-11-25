@@ -10,8 +10,8 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 # Configuration
-SUPABASE_URL = "https://iiktakgsnyrvudupdwnn.supabase.co"
-SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlpa3Rha2dzbnlydnVkdXBkd25uIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4MzgxMzEsImV4cCI6MjA3NTQxNDEzMX0._w_5iG7pIPCftfmxDMECLkD5wAfdDITK4HV7glfYTXQ"
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
 if not SUPABASE_URL or not SUPABASE_URL.startswith("http"):
     raise ValueError(f"SUPABASE_URL is missing or invalid: {SUPABASE_URL}")
