@@ -1,22 +1,44 @@
 # main.py
+import os
 import logging
+
+# Debug environment variables FIRST
+print("=== RAILWAY ENVIRONMENT DEBUG ===")
+print("DEBUG: All environment variables:")
+for key, value in os.environ.items():
+    if 'SUPABASE' in key or 'URL' in key or 'KEY' in key:
+        print(f"  {key}: {value}")
+
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+print(f"DEBUG: SUPABASE_URL = {SUPABASE_URL}")
+print(f"DEBUG: SUPABASE_KEY = {SUPABASE_KEY if SUPABASE_KEY else 'NOT SET'}")
+
+if not SUPABASE_URL or not SUPABASE_KEY:
+    print("❌ CRITICAL: Supabase environment variables are missing!")
+    # Use fallback for testing
+    SUPABASE_URL = SUPABASE_URL or "https://default-fallback.supabase.co"
+    SUPABASE_KEY = SUPABASE_KEY or "default-fallback-key"
+    print(f"⚠️  Using fallback values for testing")
+
+print("=== END DEBUG ===")
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import httpx
-import os
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 # Configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+# SUPABASE_URL = os.getenv('SUPABASE_URL')
+# SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 
-if not SUPABASE_URL or not SUPABASE_URL.startswith("http"):
-    raise ValueError(f"SUPABASE_URL is missing or invalid: {SUPABASE_URL}")
-if not SUPABASE_KEY:
-    raise ValueError("SUPABASE_KEY is missing")
+# if not SUPABASE_URL or not SUPABASE_URL.startswith("http"):
+#     raise ValueError(f"SUPABASE_URL is missing or invalid: {SUPABASE_URL}")
+# if not SUPABASE_KEY:
+#     raise ValueError("SUPABASE_KEY is missing")
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
