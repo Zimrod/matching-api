@@ -1,4 +1,4 @@
-# railway_main.py
+# main.py
 import logging
 from fastapi import FastAPI, HTTPException
 from contextlib import asynccontextmanager
@@ -258,12 +258,69 @@ class MatchingService:
 # Create singleton instance
 matching_service = MatchingService()
 
-# FastAPI App
+# Test function - moved inside the class
+async def test_matching_locally():
+    """Test the matching service with sample data"""
+    # Fake listing
+    listing = {
+        "id": "test-listing-1",
+        "category": "vehicles",
+        "product_data": {
+            "make": "Audi",
+            "model": "A4",
+            "year": 2023,
+            "price": 36900,
+            "currency": "USD"
+        },
+        "seller_name": "John Doe",
+        "seller_contact": "+263771234567",
+        "location": "Harare, Zimbabwe",
+        "telegram_sender_id": 123456789
+    }
+
+    # Fake buyer
+    buyer = {
+        "id": "test-buyer-1",
+        "name": "Alice",
+        "cell_number": "+263772345678",
+        "preferences": [
+            {
+                "category": "vehicles",
+                "vehicle": {
+                    "make": "Audi",
+                    "model": "A4",
+                    "minYear": 2018,
+                    "maxYear": 2025
+                },
+                "price": {
+                    "min": 30000,
+                    "max": 50000
+                },
+                "location": {
+                    "country": "Zimbabwe",
+                    "city": "Harare"
+                }
+            }
+        ]
+    }
+
+    # Test match
+    result = matching_service._match_single_preference(listing, buyer["preferences"][0], buyer)
+    print("Match result:", result)
+    return result
+
+# FastAPI App with lifespan (replaces on_event)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     print("🚀 Starting Message Processing Service...")
     print("✅ Matching service ready")
+    
+    # Run test on startup
+    print("🧪 Running local matching test...")
+    await test_matching_locally()
+    
     yield
+    
     print("🛑 Shutting down Message Processing Service...")
 
 app = FastAPI(lifespan=lifespan)
@@ -325,6 +382,23 @@ async def test_telegram_webhook(payload: dict):
         
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+@app.post("/test-local-matching")
+async def test_local_matching_endpoint(payload: dict):
+    """Endpoint to test matching with custom data"""
+    listing = payload.get("listing")
+    buyers = payload.get("buyers", [])
+
+    matches = []
+    for buyer in buyers:
+        for pref in buyer.get("preferences", []):
+            if matching_service._match_single_preference(listing, pref, buyer):
+                matches.append({
+                    "buyer_id": buyer["id"],
+                    "buyer_name": buyer["name"]
+                })
+
+    return {"matches": matches}
 
 if __name__ == "__main__":
     import uvicorn
