@@ -294,6 +294,37 @@ async def trigger_matching(listing_id: str):
         "match_count": len(matches),
     }
 
+@app.post("/test-telegram-webhook")
+async def test_telegram_webhook(payload: dict):
+    try:
+        message_data = {
+            "raw_text": payload.get("raw_text", "Test message"),
+            "sender_id": payload.get("sender_id", 123456789),
+            "sender_username": payload.get("sender_username"),
+            "sender_name": payload.get("sender_name", "Many Men"),
+            "chat_id": payload.get("chat_id", -4846687198),
+            "chat_title": payload.get("chat_title", "Test Group"),
+            "message_id": payload.get("message_id", int(time.time())),
+            "timestamp": payload.get("timestamp", time.time()),
+        }
+        
+        N8N_FILTERING_URL = "https://primary-production-7bfa7.up.railway.app/webhook/telegram-messages"
+        
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                N8N_FILTERING_URL,
+                json=message_data
+            )
+            
+        return {
+            "success": True,
+            "sent_to_n8n": response.status_code == 200,
+            "n8n_url": N8N_FILTERING_URL
+        }
+        
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
