@@ -76,141 +76,142 @@ class MatchingService:
                 raise
 
     async def find_matches_for_listing(self, listing_id: str) -> List[Dict[str, Any]]:
-        """Find all buyer matches for a given listing"""
         try:
-            print(f"🔍 DEBUG: Looking for listing ID: {listing_id}")
-            
+            print(f"\n🔍 MATCHING: Fetching listing {listing_id}")
+
             listings = await self._get("listings", {"id": f"eq.{listing_id}"})
-            
-            print(f"🔍 DEBUG: Found {len(listings)} listings")
-            for listing in listings:
-                print(f"🔍 DEBUG: Listing ID: {listing.get('id')}")
-            
             if not listings:
-                logger.error(f"Listing {listing_id} not found")
+                print(f"❌ No listing found for ID: {listing_id}")
                 return []
 
             listing = listings[0]
-            logger.info(f"Processing listing: {listing['product_data'].get('make')} {listing['product_data'].get('model')}")
+            print(f"🚗 Processing: {listing['product_data'].get('make')} {listing['product_data'].get('model')}")
 
             buyers = await self._get("buyers", {"select": "*"})
+            print(f"👥 Loaded {len(buyers)} buyers")
+
             matches = []
 
             for buyer in buyers:
-                # Check if listing matches any of the buyer's preferences
-                if self._is_match_with_preferences(listing, buyer):
-                    match = self._create_match_record(listing, [buyer])
+                if self._matches_buyer(listing, buyer):
+                    match = self._create_match_record(listing, buyer)
                     matches.append(match)
 
-            if matches:
-                await self._insert("matches", matches)
-                logger.info(f"Created {len(matches)} matches for listing {listing_id}")
+            # Insert individually
+            for m in matches:
+                await self._insert("matches", m)
 
+            print(f"✅ TOTAL MATCHES CREATED: {len(matches)}")
             return matches
 
         except Exception as e:
-            logger.error(f"Error finding matches for listing {listing_id}: {str(e)}")
+            print(f"❌ ERROR in find_matches_for_listing: {e}")
             return []
+        
+    def _matches_buyer(self, listing: Dict[str, Any], buyer: Dict[str, Any]) -> bool:
+        preferences = buyer.get("preferences", [])
 
-    def _is_match_with_preferences(self, listing: Dict[str, Any], buyer: Dict[str, Any]) -> bool:
-        """Check if a listing matches any of the buyer's preferences"""
-        try:
-            preferences = buyer.get("preferences", [])
-            
-            # Handle both array and single object for backward compatibility
-            if isinstance(preferences, dict):
-                preferences = [preferences]
-            elif not isinstance(preferences, list):
-                preferences = []
-            
-            # If buyer has no preferences, no match
-            if not preferences:
-                return False
-            
-            # Check if listing matches ANY of the buyer's preferences
-            for preference in preferences:
-                if self._is_single_preference_match(listing, preference):
-                    return True
-            
+        if isinstance(preferences, dict):
+            preferences = [preferences]
+
+        if not isinstance(preferences, list) or len(preferences) == 0:
             return False
 
-        except Exception as e:
-            logger.error(f"Error in match logic for buyer {buyer.get('name')}: {str(e)}")
+        for pref in preferences:
+            if self._match_single_preference(listing, pref, buyer):
+                return True
+
+        return False
+    
+    def _match_single_preference(self, listing, pref, buyer) -> bool:
+        product = listing.get("product_data", {})
+
+        # Normalize listing fields
+        l_make = str(product.get("make", "")).lower()
+        l_model = str(product.get("model", "")).lower()
+        l_year = self._safe_int(product.get("year"))
+        l_price = self._safe_float(product.get("price"))
+        l_location_raw = (listing.get("location") or "").lower()
+
+        # Normalize location from string: "Harare, Zimbabwe"
+        l_city, l_country = self._parse_location(l_location_raw)
+
+        # Normalize preference fields
+        pref_vehicle = pref.get("vehicle", {})
+        pref_price = pref.get("price", {})
+        pref_location = pref.get("location", {})
+
+        p_make = str(pref_vehicle.get("make", "")).lower()
+        p_model = str(pref_vehicle.get("model", "")).lower()
+        p_min_year = self._safe_int(pref_vehicle.get("minYear"))
+        p_max_year = self._safe_int(pref_vehicle.get("maxYear"))
+        p_min_price = self._safe_float(pref_price.get("min"))
+        p_max_price = self._safe_float(pref_price.get("max"))
+
+        p_city = str(pref_location.get("city", "")).lower().strip()
+        p_country = str(pref_location.get("country", "")).lower().strip()
+
+        print(f"\n🔎 Checking buyer {buyer.get('name')} against listing {product.get('make')} {product.get('model')}")
+
+        # ---- 1. Make ----
+        if p_make and l_make != p_make:
+            print(f"❌ Make mismatch: Listing '{l_make}' != Preference '{p_make}'")
             return False
 
-    def _is_single_preference_match(self, listing: Dict[str, Any], preference: Dict[str, Any]) -> bool:
-        """Check if listing matches a single preference object"""
-        try:
-            product_data = listing.get("product_data", {})
-            
-            # Extract listing details
-            listing_make = str(product_data.get("make", "")).lower().strip()
-            listing_model = str(product_data.get("model", "")).lower().strip()
-            listing_price = self._safe_float(product_data.get("price", 0))
-            listing_year = self._safe_int(product_data.get("year"))
-            listing_category = str(product_data.get("category", "")).lower().strip()
-
-            # Extract preference details
-            pref_category = str(preference.get("category", "")).lower().strip()
-            pref_vehicle = preference.get("vehicle", {})
-            pref_price = preference.get("price", {})
-            pref_location = preference.get("location", {})
-
-            # 1. Check category match
-            if pref_category and listing_category != pref_category:
-                return False
-
-            # 2. Check vehicle-specific matches (only if category is vehicles)
-            if pref_category == "vehicles" and pref_vehicle:
-                # Check make
-                pref_make = str(pref_vehicle.get("make", "")).lower().strip()
-                if pref_make and listing_make != pref_make:
-                    return False
-
-                # Check model
-                pref_model = str(pref_vehicle.get("model", "")).lower().strip()
-                if pref_model and listing_model != pref_model:
-                    return False
-
-                # Check year range
-                pref_min_year = self._safe_int(pref_vehicle.get("minYear"))
-                pref_max_year = self._safe_int(pref_vehicle.get("maxYear"))
-                
-                if listing_year:
-                    if pref_min_year and listing_year < pref_min_year:
-                        return False
-                    if pref_max_year and listing_year > pref_max_year:
-                        return False
-
-            # 3. Check price range
-            pref_min_price = self._safe_float(pref_price.get("min"))
-            pref_max_price = self._safe_float(pref_price.get("max"))
-            
-            if listing_price > 0:  # Only check if listing has a valid price
-                if pref_min_price and listing_price < pref_min_price:
-                    return False
-                if pref_max_price and listing_price > pref_max_price:
-                    return False
-
-            # 4. Check location (optional)
-            pref_country = str(pref_location.get("country", "")).lower().strip()
-            pref_city = str(pref_location.get("city", "")).lower().strip()
-            
-            listing_country = str(product_data.get("country", "")).lower().strip()
-            listing_city = str(product_data.get("city", "")).lower().strip()
-            
-            if pref_country and listing_country and pref_country != listing_country:
-                return False
-            if pref_city and listing_city and pref_city != listing_city:
-                return False
-
-            logger.debug(f"Match found for preference: {pref_category} - {pref_vehicle.get('make', '')} {pref_vehicle.get('model', '')}")
-            return True
-
-        except Exception as e:
-            logger.error(f"Error in single preference match: {str(e)}")
+        # ---- 2. Model ----
+        if p_model and l_model != p_model:
+            print(f"❌ Model mismatch: Listing '{l_model}' != Preference '{p_model}'")
             return False
 
+        # ---- 3. Year ----
+        if l_year:
+            if p_min_year and l_year < p_min_year:
+                print(f"❌ Year too old: {l_year} < {p_min_year}")
+                return False
+            if p_max_year and l_year > p_max_year:
+                print(f"❌ Year too new: {l_year} > {p_max_year}")
+                return False
+
+        # ---- 4. Price ----
+        if l_price:
+            if p_min_price and l_price < p_min_price:
+                print(f"❌ Price too low: {l_price} < {p_min_price}")
+                return False
+            if p_max_price and l_price > p_max_price:
+                print(f"❌ Price too high: {l_price} > {p_max_price}")
+                return False
+
+        # ---- 5. Location (OPTIONAL — only apply if both sides specify) ----
+        if p_country:
+            if not l_country:
+                print(f"⚠️ Listing has no country but buyer requires '{p_country}' — ignoring")
+            elif l_country != p_country:
+                print(f"❌ Country mismatch: Listing '{l_country}' != Pref '{p_country}'")
+                return False
+
+        if p_city:
+            if not l_city:
+                print(f"⚠️ Listing has no city but buyer requires '{p_city}' — ignoring")
+            elif l_city != p_city:
+                print(f"❌ City mismatch: Listing '{l_city}' != Pref '{p_city}'")
+                return False
+
+        print(f"✅ MATCH SUCCESS for buyer {buyer.get('name')}")
+        return True
+    
+    def _parse_location(self, location: str):
+        if not location:
+            return "", ""
+
+        parts = [p.strip() for p in location.split(",")]
+
+        if len(parts) == 2:
+            return parts[0], parts[1]
+        elif len(parts) == 1:
+            # Could be either city OR country — but we treat as city
+            return parts[0], ""
+        return "", ""
+    
     def _safe_float(self, value: Any) -> float:
         """Safely convert value to float"""
         try:
