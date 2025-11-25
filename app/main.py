@@ -10,8 +10,13 @@ from typing import List, Dict, Any, Optional
 from datetime import datetime
 
 # Configuration
-SUPABASE_URL = os.getenv('SUPABASE_URL', 'your-supabase-url')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY', 'your-supabase-key')
+SUPABASE_URL = os.getenv('SUPABASE_URL')
+SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+
+if not SUPABASE_URL or not SUPABASE_URL.startswith("http"):
+    raise ValueError(f"SUPABASE_URL is missing or invalid: {SUPABASE_URL}")
+if not SUPABASE_KEY:
+    raise ValueError("SUPABASE_KEY is missing")
 
 HEADERS = {
     "apikey": SUPABASE_KEY,
