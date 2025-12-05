@@ -160,7 +160,7 @@ class MatchingService:
         l_price = self._safe_float(product.get("price"))
         l_location_raw = (listing.get("location") or "").lower()
 
-        # Normalize location from string: "Harare, Zimbabwe"
+        # Normalize location
         l_city, l_country = self._parse_location(l_location_raw)
 
         # Normalize preference fields
@@ -175,10 +175,24 @@ class MatchingService:
         p_min_price = self._safe_float(pref_price.get("min"))
         p_max_price = self._safe_float(pref_price.get("max"))
 
-        p_city = str(pref_location.get("city", "")).lower().strip()
+        # Country preference
         p_country = str(pref_location.get("country", "")).lower().strip()
 
         print(f"\n🔎 Checking buyer {buyer.get('name')} against listing {product.get('make')} {product.get('model')}")
+
+        # ================================================
+        # 0️⃣ ZIMBABWE-ONLY RULE — CITY IGNORED COMPLETELY
+        # ================================================
+
+        # Listing must be in Zimbabwe
+        if l_country != "zimbabwe":
+            print(f"❌ Listing country '{l_country}' is not Zimbabwe — rejecting")
+            return False
+
+        # Buyer must want ONLY Zimbabwe (or unspecified, which defaults to Zimbabwe-only rule)
+        if p_country and p_country != "zimbabwe":
+            print(f"❌ Buyer is outside Zimbabwe — rejecting")
+            return False
 
         # ---- 1. Make ----
         if p_make and l_make != p_make:
@@ -208,24 +222,12 @@ class MatchingService:
                 print(f"❌ Price too high: {l_price} > {p_max_price}")
                 return False
 
-        # ---- 5. Location (OPTIONAL — only apply if both sides specify) ----
-        if p_country:
-            if not l_country:
-                print(f"⚠️ Listing has no country but buyer requires '{p_country}' — ignoring")
-            elif l_country != p_country:
-                print(f"❌ Country mismatch: Listing '{l_country}' != Pref '{p_country}'")
-                return False
-
-        if p_city:
-            if not l_city:
-                print(f"⚠️ Listing has no city but buyer requires '{p_city}' — ignoring")
-            elif l_city != p_city:
-                print(f"❌ City mismatch: Listing '{l_city}' != Pref '{p_city}'")
-                return False
+        # ---- 5. City completely ignored now ----
+        # nothing here
 
         print(f"✅ MATCH SUCCESS for buyer {buyer.get('name')}")
         return True
-    
+
     def _parse_location(self, location: str):
         if not location:
             return "", ""
