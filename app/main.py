@@ -184,11 +184,6 @@ class MatchingService:
         # 0️⃣ ZIMBABWE-ONLY RULE — CITY IGNORED COMPLETELY
         # ================================================
 
-        # Listing must be in Zimbabwe
-        if l_country != "zimbabwe":
-            print(f"❌ Listing country '{l_country}' is not Zimbabwe — rejecting")
-            return False
-
         # Buyer must want ONLY Zimbabwe (or unspecified, which defaults to Zimbabwe-only rule)
         if p_country and p_country != "zimbabwe":
             print(f"❌ Buyer is outside Zimbabwe — rejecting")
