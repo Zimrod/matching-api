@@ -369,11 +369,15 @@ async def health():
 @app.post("/trigger-matching/{listing_id}")
 async def trigger_matching(listing_id: str):
     matches = await matching_service.find_matches_for_listing(listing_id)
+    product_data = {}
     return {
         "success": True,
         "listing_id": listing_id,
         "matches": matches,
         "match_count": len(matches),
+        "make": product_data.get("make"),
+        "model": product_data.get("model"),
+        "price": product_data.get("price"),
     }
 
 @app.post("/test-telegram-webhook")
