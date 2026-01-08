@@ -10,7 +10,7 @@ for key, value in os.environ.items():
         print(f"  {key}: {value}")
 
 SUPABASE_URL = os.getenv('SUPABASE_URL')
-SUPABASE_KEY = os.getenv('SUPABASE_KEY')
+SUPABASE_KEY = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
 
 print(f"DEBUG: SUPABASE_URL = {SUPABASE_URL}")
 print(f"DEBUG: SUPABASE_KEY = {SUPABASE_KEY if SUPABASE_KEY else 'NOT SET'}")
@@ -375,9 +375,9 @@ async def trigger_matching(listing_id: str):
         "listing_id": listing_id,
         "matches": matches,
         "match_count": len(matches),
-        "make": product_data.get("make"),
-        "model": product_data.get("model"),
-        "price": product_data.get("price"),
+        "make": product_data.make,
+        "model": product_data.model,
+        "price": product_data.price,
     }
 
 @app.post("/test-telegram-webhook")
