@@ -16,11 +16,7 @@ print(f"DEBUG: SUPABASE_URL = {SUPABASE_URL}")
 print(f"DEBUG: SUPABASE_KEY = {SUPABASE_KEY if SUPABASE_KEY else 'NOT SET'}")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    print("❌ CRITICAL: Supabase environment variables are missing!")
-    # Use fallback for testing
-    SUPABASE_URL = SUPABASE_URL or "https://default-fallback.supabase.co"
-    SUPABASE_KEY = SUPABASE_KEY or "default-fallback-key"
-    print(f"⚠️  Using fallback values for testing")
+    raise RuntimeError("Supabase credentials missing — aborting startup")
 
 print("=== END DEBUG ===")
 from fastapi import FastAPI, HTTPException
