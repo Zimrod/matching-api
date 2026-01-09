@@ -373,6 +373,15 @@ async def get_pending_matches():
         "matches": matches
     }
 
+@app.post("/matches/{match_id}/mark-notified")
+async def mark_match_notified(match_id: str):
+    await matching_service._patch(
+        "matches",
+        {"notified": True},
+        {"id": f"eq.{match_id}"}
+    )
+    return {"success": True}
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "timestamp": time.time()}
