@@ -97,6 +97,26 @@ class MatchingService:
             except Exception as e:
                 print(f"❌ Error: {str(e)}")
                 raise
+    
+    async def _patch(
+        self,
+        table: str,
+        data: dict,
+        filters: dict
+    ):
+        url = f"{self.supabase_url}/rest/v1/{table}"
+
+        params = filters
+
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(
+                url,
+                headers=self.headers,
+                params=params,
+                json=data,
+            )
+            response.raise_for_status()
+            return response.json()
 
     async def find_matches_for_listing(self, listing_id: str) -> List[Dict[str, Any]]:
         try:
