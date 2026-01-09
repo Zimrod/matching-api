@@ -358,6 +358,21 @@ app.add_middleware(
 async def root():
     return {"message": "Matching Service API"}
 
+@app.get("/matches/pending")
+async def get_pending_matches():
+    matches = await matching_service._get(
+        "matches",
+        {
+            "notified": "eq.false",
+            "select": "id,listing_id,seller_id,product_data,buyers,matched_at"
+        }
+    )
+    return {
+        "success": True,
+        "count": len(matches),
+        "matches": matches
+    }
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "timestamp": time.time()}
